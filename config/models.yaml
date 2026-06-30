@@ -1,0 +1,37 @@
+# ── Model routing ─────────────────────────────────────────────────────────────
+# Each pipeline role maps to a logical model key defined under `models:`.
+# This is the seam ported from your Playwright studio's two-client router,
+# generalised to branch on PROVIDER (not just deployment) so Haiku can slot in.
+
+roles:
+  planner:   reasoning      # decompose NL intent -> concrete SAP steps
+  verifier:  general        # check outcomes / NL assertions (cheap, high volume)
+  self_heal: reasoning      # remap elements when a screen changes
+  fallback:  general        # used when the primary model errors out
+
+models:
+  general:
+    provider: azure_openai
+    deployment_env: AZURE_OPENAI_DEPLOYMENT
+    api_version_env: AZURE_OPENAI_API_VERSION
+    temperature: 0.2
+    max_tokens: 1500
+
+  reasoning:
+    provider: azure_openai
+    deployment_env: AZURE_REASONING_DEPLOYMENT
+    api_version_env: AZURE_REASONING_API_VERSION
+    temperature: 0.2
+    max_tokens: 2000
+
+  # STUBBED — wire azure_foundry_adapter.py + uncomment Foundry env vars to use.
+  haiku:
+    provider: azure_foundry
+    deployment_env: AZURE_FOUNDRY_DEPLOYMENT
+    temperature: 0.2
+    max_tokens: 1500
+
+# Retry policy for transient errors (429 / 5xx / connection).
+retry:
+  attempts: 2
+  base_backoff: 1.5

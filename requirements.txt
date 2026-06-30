@@ -1,0 +1,25 @@
+# ── Core ──────────────────────────────────────────────────────────────────────
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# ── Azure LLM (model layer) ───────────────────────────────────────────────────
+# o4-mini / gpt-* are served through Azure OpenAI -> the openai SDK's Azure client.
+openai>=1.40
+# Haiku (Anthropic) on Azure is served through Azure AI Foundry, which the
+# openai SDK CANNOT call. The adapter for it (currently stubbed) will use:
+#   azure-ai-inference>=1.0.0b4
+#   azure-core>=1.30
+# Uncomment when you wire the Foundry endpoint.
+
+# ── SAP GUI Scripting (Windows only) ──────────────────────────────────────────
+# pywin32 drives the SAP GUI Scripting COM object model. Windows-only;
+# on macOS/Linux the SAP layer runs in dry-run/mock mode for development.
+pywin32>=306 ; sys_platform == "win32"
+
+# ── Runner / reporting ────────────────────────────────────────────────────────
+pytest>=8.0
+jinja2>=3.1
+
+# ── Dashboard (studio/server.py) ───────────────────────────────────────────────
+fastapi>=0.110
+uvicorn[standard]>=0.29

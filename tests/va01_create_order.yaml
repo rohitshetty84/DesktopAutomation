@@ -1,0 +1,66 @@
+# Sample SAP GUI test — create a standard sales order (VA01).
+#
+# Two ways to author a test:
+#   1. INTENT-ONLY  — give just `intent` + `expect`; the AI planner generates the
+#      steps on first run (then cache them back here for deterministic reruns).
+#   2. EXPLICIT STEPS — provide `steps` for a fast, deterministic happy path; the
+#      engine still self-heals any step whose element id has moved.
+#
+# This sample uses explicit steps. Element ids are illustrative — adjust to your
+# system's screens (capture them with SAP GUI scripting record, or let the
+# planner infer them from the live tree).
+
+name: VA01 Create Standard Order
+intent: >
+  Create a standard sales order (order type OR) for sold-to party 1000 with
+  one line item: material M-01, quantity 10. Save it and capture the order number.
+transaction: VA01
+expect: >
+  A sales order is created and saved. The status bar shows a success (S) message
+  containing the new document number.
+
+steps:
+  - action: start_transaction
+    target: VA01
+    note: open the create-sales-order transaction
+
+  - action: set_text
+    target: wnd[0]/usr/ctxtVBAK-AUART
+    value: "OR"
+    note: order type = standard order
+
+  - action: set_text
+    target: wnd[0]/usr/ctxtVBAK-VKORG
+    value: "1000"
+    note: sales organization
+
+  - action: send_vkey
+    target: "0"
+    note: Enter to open the overview screen
+
+  - action: set_text
+    target: wnd[0]/usr/subSUBSCREEN_HEADER:SAPMV45A:4021/ctxtKUAGV-KUNNR
+    value: "1000"
+    note: sold-to party
+
+  - action: set_text
+    target: wnd[0]/usr/tabsTAXI_TABSTRIP_OVERVIEW/tabpT\\01/ssubSUBSCREEN_BODY:SAPMV45A:4400/tblSAPMV45ATCTRL_U_ERF_AUFTRAG/ctxtRV45A-MABNR[1,0]
+    value: "M-01"
+    note: material on first line item
+
+  - action: set_text
+    target: wnd[0]/usr/tabsTAXI_TABSTRIP_OVERVIEW/tabpT\\01/ssubSUBSCREEN_BODY:SAPMV45A:4400/tblSAPMV45ATCTRL_U_ERF_AUFTRAG/txtRV45A-KWMENG[2,0]
+    value: "10"
+    note: order quantity
+
+  - action: send_vkey
+    target: "0"
+    note: Enter to confirm the line
+
+  - action: send_vkey
+    target: "11"
+    note: Save (Ctrl+S)
+
+  - action: assert_status
+    value: "has been saved"
+    note: fast deterministic check; the AI verifier also runs at the end

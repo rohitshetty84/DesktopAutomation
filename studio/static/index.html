@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SAP Test Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Same design system as the Playwright AI Studio ("TestMind") sibling tool,
+       so the two dashboards read as a family. */
+    --bg:        #F8FAFB;
+    --surface:   #FFFFFF;
+    --surface2:  #F3F7FB;
+    --border:    #E2E8F0;
+    --border2:   #CBD5E1;
+
+    --accent:    #D97706;
+    --accent2:   #F59E0B;
+    --accent3:   #FB923C;
+
+    --text:      #000000;
+    --text2:     #1F2937;
+    --text3:     #374151;
+    --text-inv:  #FFFFFF;
+
+    --pass-bg:   #ECFDF5; --pass-b: #86EFAC; --pass-t: #166534;
+    --fail-bg:   #FEF2F2; --fail-b: #FECACA; --fail-t: #991B1B;
+    --warn-bg:   #FFFBEB; --warn-b: #FCD34D; --warn-t: #92400E;
+    --heal-bg:   #EDE9FE; --heal-b: #C4B5FD; --heal-t: #5B21B6;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .shell { display: grid; grid-template-rows: 64px 1fr; height: 100vh; }
+
+  .topbar {
+    background: linear-gradient(135deg, var(--accent) 0%, #B45309 100%);
+    display: flex; align-items: center; gap: 16px; padding: 0 28px;
+    position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-md); height: 64px;
+  }
+  .logo-icon { width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.2);
+    display: grid; place-items: center; font-size: 16px; flex-shrink: 0; font-weight: 700;
+    color: white; border: 1px solid rgba(255,255,255,0.3); }
+  .logo-name { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .logo-sub { font-size: 10px; color: rgba(255,255,255,0.7); font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
+  .topbar-badges { margin-left: auto; display: flex; gap: 8px; }
+  .topbar-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    color: white; border-radius: 12px; padding: 4px 12px; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+  .body { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; }
+
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 12px;
+    display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 8px;
+    cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text2);
+    border: 1px solid transparent; transition: all 0.2s ease; user-select: none; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  .nav-item.active { background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(245,158,11,0.1));
+    border-color: var(--accent2); color: var(--accent); font-weight: 700; }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-badge { margin-left: auto; background: var(--surface2); color: var(--text2); border-radius: 12px;
+    padding: 2px 8px; font-size: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 700;
+    border: 1px solid var(--border); }
+
+  .main { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+  .pane { display: none; flex-direction: column; gap: 18px; }
+  .pane.active { display: flex; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; box-shadow: var(--shadow-sm); transition: all 0.2s ease; }
+  .card:hover { border-color: var(--border2); box-shadow: var(--shadow-md); }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .row { display: flex; align-items: center; gap: 10px; }
+  .col { display: flex; flex-direction: column; gap: 12px; }
+  .ml-auto { margin-left: auto; }
+  .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; }
+
+  .btn { background: var(--accent); color: white; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 12px; font-weight: 700; font-family: 'Syne', sans-serif;
+    cursor: pointer; transition: all 0.15s ease; }
+  .btn:hover { background: #B45309; }
+  .btn:disabled { background: var(--border2); cursor: not-allowed; }
+  .btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .muted { color: var(--text2); font-size: 12px; }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+    border-radius: 12px; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; border: 1px solid; white-space: nowrap; }
+  .sp-pending { background:#F3F4F6; border-color:#D1D5DB; color:#6B7280; }
+  .sp-running { background:#EDE9FE; border-color:#C4B5FD; color:#5B21B6; }
+  .sp-pass    { background:var(--pass-bg); border-color:var(--pass-b); color:var(--pass-t); }
+  .sp-fail    { background:var(--fail-bg); border-color:var(--fail-b); color:var(--fail-t); }
+  .sp-heal    { background:var(--heal-bg); border-color:var(--heal-b); color:var(--heal-t); }
+  @keyframes blink-glow { 0%,100%{opacity:1} 50%{opacity:0.55} }
+  .sp-pulse { animation: blink-glow 1.4s ease-in-out infinite; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 7px 10px; font-size: 10px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border);
+    background: var(--surface2); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--surface2); }
+  tr.clickable { cursor: pointer; }
+  code { background: var(--surface2); padding: 1px 5px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+  .empty { text-align: center; padding: 48px 20px; color: var(--text2); font-size: 13px;
+    font-family: 'JetBrains Mono', monospace; }
+
+  #toast { position: fixed; bottom: 24px; right: 24px; background: #0a1f3d; border: 1px solid #1d3a6f;
+    color: #93c5fd; padding: 10px 18px; border-radius: 8px; font-size: 13px;
+    font-family: 'JetBrains Mono', monospace; opacity: 0; transform: translateY(8px);
+    transition: all 0.25s; pointer-events: none; z-index: 999; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="logo-icon">SAP</div>
+    <div>
+      <div class="logo-name">SAP Test Studio</div>
+      <div class="logo-sub">Adaptive GUI Automation</div>
+    </div>
+    <div class="topbar-badges">
+      <span class="topbar-badge" id="badge-tests">0 tests</span>
+      <span class="topbar-badge" id="badge-runs">0 runs</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="sidebar">
+      <div class="nav-item active" data-pane="tests" onclick="switchPane('tests')">
+        <span class="icon">&#128203;</span> Tests
+      </div>
+      <div class="nav-item" data-pane="history" onclick="switchPane('history')">
+        <span class="icon">&#128338;</span> Run History
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- Tests pane -->
+      <div class="pane active" id="pane-tests">
+        <div class="card-title">YAML Test Cases</div>
+        <div class="col" id="tests-list"><div class="empty">Loading tests…</div></div>
+      </div>
+
+      <!-- Live run pane (shown by switching to it programmatically) -->
+      <div class="pane" id="pane-live">
+        <div class="row">
+          <div class="card-title" style="margin:0">Live Run — <span id="live-test-name" class="mono"></span></div>
+          <span class="ml-auto status-pill sp-running sp-pulse" id="live-overall">running</span>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>#</th><th>Action</th><th>Target</th><th>Value</th><th>Note</th><th>Status</th><th>Detail</th></tr></thead>
+            <tbody id="live-steps"></tbody>
+          </table>
+        </div>
+        <div class="card" id="live-verify-card" style="display:none">
+          <div class="card-title">Verification</div>
+          <div id="live-verify-text" class="muted"></div>
+        </div>
+        <button class="btn btn-ghost" onclick="switchPane('history'); fetchRuns();">Back to Run History</button>
+      </div>
+
+      <!-- Run history pane -->
+      <div class="pane" id="pane-history">
+        <div id="history-list-view">
+          <div class="card-title">Run History</div>
+          <div class="card">
+            <table>
+              <thead><tr><th>Test</th><th>Result</th><th>Started</th><th>Duration</th><th>Source</th></tr></thead>
+              <tbody id="runs-table"></tbody>
+            </table>
+            <div class="empty" id="runs-empty" style="display:none">No runs yet — trigger one from the Tests tab.</div>
+          </div>
+        </div>
+        <div id="history-detail-view" style="display:none">
+          <div class="row">
+            <button class="btn btn-ghost" onclick="closeRunDetail()">&larr; Back</button>
+            <div class="card-title" style="margin:0" id="detail-title"></div>
+            <span class="ml-auto status-pill" id="detail-overall"></span>
+          </div>
+          <div class="card">
+            <table>
+              <thead><tr><th>#</th><th>Action</th><th>Target</th><th>Value</th><th>Note</th><th>Status</th><th>Detail</th></tr></thead>
+              <tbody id="detail-steps"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title">Healing Log</div>
+            <div id="detail-healing" class="mono muted"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Verification</div>
+            <div id="detail-verify" class="muted mt-8"></div>
+            <div class="mt-12"><a class="btn btn-ghost" id="detail-report-link" href="#" target="_blank">Open HTML Report</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const STATE = { tests: [], runs: [] };
+
+function esc(s) {
+  const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function switchPane(name) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`pane-${name}`).classList.add('active');
+  const nav = document.querySelector(`.nav-item[data-pane="${name}"]`);
+  if (nav) nav.classList.add('active');
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────
+async function fetchTests() {
+  const tests = await (await fetch('/api/tests')).json();
+  STATE.tests = tests;
+  document.getElementById('badge-tests').textContent = `${tests.length} tests`;
+  const el = document.getElementById('tests-list');
+  if (!tests.length) { el.innerHTML = '<div class="empty">No YAML tests found in tests/</div>'; return; }
+  el.innerHTML = tests.map(t => `
+    <div class="card">
+      <div class="row">
+        <div class="card-title" style="margin:0">${esc(t.name)}</div>
+        <span class="muted ml-auto mono">${t.step_count} steps</span>
+        <button class="btn" onclick="triggerRun('${esc(t.name).replace(/'/g, "\\'")}')">Run</button>
+      </div>
+      <div class="muted mt-8">${esc(t.intent || '(no intent set)')}</div>
+      ${t.transaction ? `<div class="muted mt-8">Transaction: <code>${esc(t.transaction)}</code></div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── Trigger + live stream ────────────────────────────────────────────────────
+let liveSteps = [];
+
+async function triggerRun(testName) {
+  let resp;
+  try {
+    resp = await fetch('/api/runs/trigger', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test_name: testName }),
+    });
+  } catch (e) { toast('Trigger failed: ' + e.message); return; }
+  if (resp.status === 409) { toast('A run is already in progress.'); return; }
+  if (!resp.ok) { toast('Trigger failed: ' + resp.status); return; }
+  const { run_id, stream_url } = await resp.json();
+  toast('Run triggered: ' + run_id);
+  liveSteps = [];
+  document.getElementById('live-test-name').textContent = testName;
+  document.getElementById('live-overall').className = 'ml-auto status-pill sp-heal sp-pulse';
+  document.getElementById('live-overall').textContent = 'launching SAP session…';
+  document.getElementById('live-steps').innerHTML = '';
+  document.getElementById('live-verify-card').style.display = 'none';
+  switchPane('live');
+  startRunStream(stream_url);
+}
+
+function renderLiveStep(i) {
+  const s = liveSteps[i];
+  if (!s) return;
+  let pillCls = 'sp-pending', pillText = 'pending';
+  if (s.status === 'running') { pillCls = 'sp-running sp-pulse'; pillText = 'running'; }
+  else if (s.status === 'healing') { pillCls = 'sp-heal sp-pulse'; pillText = 'healing'; }
+  else if (s.status === 'pass') { pillCls = s.healed ? 'sp-heal' : 'sp-pass'; pillText = s.healed ? 'healed' : 'pass'; }
+  else if (s.status === 'fail') { pillCls = 'sp-fail'; pillText = 'fail'; }
+  let row = document.getElementById(`live-row-${i}`);
+  const html = `
+    <td>${i + 1}</td>
+    <td>${esc(s.action)}</td>
+    <td><code>${esc(s.target)}</code></td>
+    <td>${esc(s.value)}</td>
+    <td class="muted">${esc(s.note)}</td>
+    <td><span class="status-pill ${pillCls}">${pillText}</span></td>
+    <td class="muted">${esc(s.detail || '')}</td>`;
+  if (!row) {
+    row = document.createElement('tr');
+    row.id = `live-row-${i}`;
+    document.getElementById('live-steps').appendChild(row);
+  }
+  row.innerHTML = html;
+}
+
+async function startRunStream(streamUrl) {
+  let resp;
+  try { resp = await fetch(streamUrl); }
+  catch (e) { toast('Stream error: ' + e.message); return; }
+  if (!resp.ok || !resp.body) { toast('Stream error: ' + resp.status); return; }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try { handleRunEvent(JSON.parse(line.slice(6))); }
+        catch { /* partial JSON, ignore */ }
+      }
+    }
+  }
+}
+
+function handleRunEvent(evt) {
+  const overall = document.getElementById('live-overall');
+  if (evt.type === 'sap_launching') {
+    overall.className = 'ml-auto status-pill sp-heal sp-pulse';
+    overall.textContent = 'launching SAP session…';
+  } else if (evt.type === 'sap_ready') {
+    overall.className = 'ml-auto status-pill sp-running sp-pulse';
+    overall.textContent = 'running';
+  } else if (evt.type === 'step_start') {
+    liveSteps[evt.index] = { ...evt.step, status: 'running' };
+    renderLiveStep(evt.index);
+  } else if (evt.type === 'heal_attempt') {
+    if (liveSteps[evt.index]) { liveSteps[evt.index].status = 'healing'; renderLiveStep(evt.index); }
+  } else if (evt.type === 'step_result') {
+    const s = liveSteps[evt.index] || {};
+    liveSteps[evt.index] = { ...s, status: evt.ok ? 'pass' : 'fail', detail: evt.detail, healed: evt.healed };
+    renderLiveStep(evt.index);
+  } else if (evt.type === 'verify_done') {
+    document.getElementById('live-verify-card').style.display = 'block';
+    document.getElementById('live-verify-text').textContent = evt.verification;
+  } else if (evt.type === 'run_done') {
+    overall.className = 'ml-auto status-pill ' + (evt.passed ? 'sp-pass' : 'sp-fail');
+    overall.textContent = evt.passed ? 'passed' : 'failed';
+  } else if (evt.type === 'error') {
+    overall.className = 'ml-auto status-pill sp-fail';
+    overall.textContent = 'error';
+    document.getElementById('live-verify-card').style.display = 'block';
+    document.getElementById('live-verify-text').textContent = 'Error: ' + evt.detail;
+    toast('Run error: ' + evt.detail);
+  } else if (evt.type === 'done') {
+    toast('Run finished.');
+    fetchRuns();
+  } else if (evt.type === 'complete') {
+    // run had already finished by the time the stream opened — render it in one shot
+    const r = evt.record;
+    if (r) {
+      liveSteps = r.steps.map(s => ({ ...s, status: s.ok ? 'pass' : 'fail' }));
+      liveSteps.forEach((_, i) => renderLiveStep(i));
+      overall.className = 'ml-auto status-pill ' + (r.passed ? 'sp-pass' : 'sp-fail');
+      overall.textContent = r.passed ? 'passed' : 'failed';
+      document.getElementById('live-verify-card').style.display = 'block';
+      document.getElementById('live-verify-text').textContent = r.verification;
+    }
+  }
+}
+
+// ── Run history ──────────────────────────────────────────────────────────────
+async function fetchRuns() {
+  const runs = await (await fetch('/api/runs')).json();
+  STATE.runs = runs;
+  document.getElementById('badge-runs').textContent = `${runs.length} runs`;
+  const body = document.getElementById('runs-table');
+  document.getElementById('runs-empty').style.display = runs.length ? 'none' : 'block';
+  body.innerHTML = runs.map(r => `
+    <tr class="clickable" onclick="openRunDetail('${r.id}')">
+      <td>${esc(r.test_name)}</td>
+      <td><span class="status-pill ${r.passed ? 'sp-pass' : 'sp-fail'}">${r.passed ? 'pass' : 'fail'}</span></td>
+      <td class="mono muted">${esc(r.started_at)}</td>
+      <td class="mono muted">${r.duration_s}s</td>
+      <td class="muted">${esc(r.source)}</td>
+    </tr>
+  `).join('');
+}
+
+async function openRunDetail(runId) {
+  const r = await (await fetch(`/api/runs/${runId}`)).json();
+  document.getElementById('history-list-view').style.display = 'none';
+  document.getElementById('history-detail-view').style.display = 'block';
+  document.getElementById('detail-title').textContent = r.test_name;
+  const overall = document.getElementById('detail-overall');
+  overall.className = 'ml-auto status-pill ' + (r.passed ? 'sp-pass' : 'sp-fail');
+  overall.textContent = r.passed ? 'passed' : 'failed';
+  document.getElementById('detail-steps').innerHTML = (r.steps || []).map((s, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${esc(s.action)}</td>
+      <td><code>${esc(s.target)}</code></td>
+      <td>${esc(s.value)}</td>
+      <td class="muted">${esc(s.note)}</td>
+      <td><span class="status-pill ${s.ok ? (s.healed ? 'sp-heal' : 'sp-pass') : 'sp-fail'}">${s.ok ? (s.healed ? 'healed' : 'pass') : 'fail'}</span></td>
+      <td class="muted">${esc(s.detail)}</td>
+    </tr>
+  `).join('');
+  const healing = r.healing_log || [];
+  document.getElementById('detail-healing').innerHTML = healing.length
+    ? healing.map(h => `<div class="mt-8">${esc(h.step?.target || '')} &rarr; ${esc(h.new_target || 'none')} — ${esc(h.reason || '')}</div>`).join('')
+    : '<span class="muted">none</span>';
+  document.getElementById('detail-verify').textContent = r.verification || '';
+  const link = document.getElementById('detail-report-link');
+  if (r.report_html_path) { link.href = `/api/runs/${runId}/report`; link.style.display = 'inline-block'; }
+  else { link.style.display = 'none'; }
+}
+
+function closeRunDetail() {
+  document.getElementById('history-detail-view').style.display = 'none';
+  document.getElementById('history-list-view').style.display = 'block';
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+fetchTests();
+fetchRuns();
+</script>
+</body>
+</html>
