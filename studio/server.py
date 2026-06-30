@@ -111,6 +111,14 @@ def _slugify(name: str) -> str:
     return (slug or "test")[:60]
 
 
+def _find_test_file(name: str) -> Path:
+    for p in sorted(TESTS_DIR.glob("*.y*ml")):
+        data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        if data.get("name", p.stem) == name:
+            return p
+    raise HTTPException(404, f"test {name!r} not found")
+
+
 @app.post("/api/tests")
 def create_test(body: NewTestBody):
     name = body.name.strip()
@@ -140,6 +148,28 @@ def create_test(body: NewTestBody):
     path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     logger.info("created test %r at %s", name, path)
     return {"name": name, "path": str(path)}
+
+
+@app.put("/api/tests/{name}")
+def update_test(name: str, body: NewTestBody):
+    path = _find_test_file(name)
+    new_name = body.name.strip()
+    new_intent = body.intent.strip()
+    if not new_name or not new_intent:
+        raise HTTPException(400, "name and intent are required")
+
+    # Re-read + only touch the 4 text fields — `steps` (if any) round-trips
+    # untouched. Note: this rewrites the file via yaml.safe_dump, which does
+    # NOT preserve hand-written comments in the original YAML (PyYAML can't
+    # round-trip them) — only matters for files that get edited via this form.
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data["name"] = new_name
+    data["intent"] = new_intent
+    data["transaction"] = body.transaction.strip()
+    data["expect"] = body.expect.strip()
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    logger.info("updated test %r at %s", new_name, path)
+    return {"name": new_name, "path": str(path)}
 
 
 # ── run history ──────────────────────────────────────────────────────────────

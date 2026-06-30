@@ -169,10 +169,10 @@
       <div class="pane active" id="pane-tests">
         <div class="row">
           <div class="card-title" style="margin:0">YAML Test Cases</div>
-          <button class="btn ml-auto" onclick="toggleNewTestForm()">+ New Test</button>
+          <button class="btn ml-auto" onclick="openNewTestForm()">+ New Test</button>
         </div>
         <div class="card" id="new-test-form" style="display:none">
-          <div class="card-title">New Test (free text — the AI plans the steps on first run)</div>
+          <div class="card-title" id="nt-form-title">New Test (free text — the AI plans the steps on first run)</div>
           <div class="col">
             <input class="field" id="nt-name" placeholder="Name, e.g. Display material master MM03" />
             <input class="field" id="nt-transaction" placeholder="Transaction code hint (optional), e.g. MM03" />
@@ -181,8 +181,8 @@
             <textarea class="field" id="nt-expect" rows="2"
               placeholder="Expected outcome (optional) — what counts as pass, in plain English"></textarea>
             <div class="row">
-              <button class="btn" onclick="createTest()">Create Test</button>
-              <button class="btn btn-ghost" onclick="toggleNewTestForm()">Cancel</button>
+              <button class="btn" id="nt-submit-btn" onclick="submitTestForm()">Create Test</button>
+              <button class="btn btn-ghost" onclick="closeTestForm()">Cancel</button>
             </div>
           </div>
         </div>
@@ -279,6 +279,7 @@ async function fetchTests() {
       <div class="row">
         <div class="card-title" style="margin:0">${esc(t.name)}</div>
         <span class="muted ml-auto mono">${t.step_count} steps</span>
+        <button class="btn btn-ghost" onclick="openEditTestForm('${esc(t.name).replace(/'/g, "\\'")}')">Edit</button>
         <button class="btn" onclick="triggerRun('${esc(t.name).replace(/'/g, "\\'")}')">Run</button>
       </div>
       <div class="muted mt-8">${esc(t.intent || '(no intent set)')}</div>
@@ -287,39 +288,62 @@ async function fetchTests() {
   `).join('');
 }
 
-function toggleNewTestForm() {
-  const form = document.getElementById('new-test-form');
-  const opening = form.style.display === 'none';
-  form.style.display = opening ? 'block' : 'none';
-  if (opening) {
-    document.getElementById('nt-name').value = '';
-    document.getElementById('nt-transaction').value = '';
-    document.getElementById('nt-intent').value = '';
-    document.getElementById('nt-expect').value = '';
-  }
+let editingTestName = null;
+
+function openNewTestForm() {
+  editingTestName = null;
+  document.getElementById('nt-form-title').textContent =
+    'New Test (free text — the AI plans the steps on first run)';
+  document.getElementById('nt-submit-btn').textContent = 'Create Test';
+  document.getElementById('nt-name').value = '';
+  document.getElementById('nt-transaction').value = '';
+  document.getElementById('nt-intent').value = '';
+  document.getElementById('nt-expect').value = '';
+  document.getElementById('new-test-form').style.display = 'block';
 }
 
-async function createTest() {
+function openEditTestForm(name) {
+  const t = STATE.tests.find(x => x.name === name);
+  if (!t) { toast('Test not found: ' + name); return; }
+  editingTestName = t.name;
+  document.getElementById('nt-form-title').textContent =
+    'Edit Test' + (t.step_count > 0 ? ' (existing steps are preserved — only the fields below change)' : '');
+  document.getElementById('nt-submit-btn').textContent = 'Save Changes';
+  document.getElementById('nt-name').value = t.name;
+  document.getElementById('nt-transaction').value = t.transaction || '';
+  document.getElementById('nt-intent').value = t.intent || '';
+  document.getElementById('nt-expect').value = t.expect || '';
+  document.getElementById('new-test-form').style.display = 'block';
+}
+
+function closeTestForm() {
+  document.getElementById('new-test-form').style.display = 'none';
+  editingTestName = null;
+}
+
+async function submitTestForm() {
   const name = document.getElementById('nt-name').value.trim();
   const intent = document.getElementById('nt-intent').value.trim();
   const transaction = document.getElementById('nt-transaction').value.trim();
   const expect = document.getElementById('nt-expect').value.trim();
   if (!name || !intent) { toast('Name and intent are required.'); return; }
 
+  const isEdit = editingTestName !== null;
+  const url = isEdit ? `/api/tests/${encodeURIComponent(editingTestName)}` : '/api/tests';
   let resp;
   try {
-    resp = await fetch('/api/tests', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    resp = await fetch(url, {
+      method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, intent, transaction, expect }),
     });
-  } catch (e) { toast('Create failed: ' + e.message); return; }
+  } catch (e) { toast((isEdit ? 'Save' : 'Create') + ' failed: ' + e.message); return; }
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({}));
-    toast('Create failed: ' + (body.detail || resp.status));
+    toast((isEdit ? 'Save' : 'Create') + ' failed: ' + (body.detail || resp.status));
     return;
   }
-  toast('Test created: ' + name);
-  toggleNewTestForm();
+  toast((isEdit ? 'Test updated: ' : 'Test created: ') + name);
+  closeTestForm();
   fetchTests();
 }
 
