@@ -97,6 +97,11 @@
   .btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
   .btn-ghost:hover { background: var(--surface); border-color: var(--border2); }
 
+  .field { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
+    font-family: 'Syne', sans-serif; font-size: 13px; color: var(--text); background: var(--surface);
+    resize: vertical; }
+  .field:focus { outline: none; border-color: var(--accent2); }
+
   .mono { font-family: 'JetBrains Mono', monospace; }
   .muted { color: var(--text2); font-size: 12px; }
 
@@ -162,7 +167,25 @@
     <div class="main">
       <!-- Tests pane -->
       <div class="pane active" id="pane-tests">
-        <div class="card-title">YAML Test Cases</div>
+        <div class="row">
+          <div class="card-title" style="margin:0">YAML Test Cases</div>
+          <button class="btn ml-auto" onclick="toggleNewTestForm()">+ New Test</button>
+        </div>
+        <div class="card" id="new-test-form" style="display:none">
+          <div class="card-title">New Test (free text — the AI plans the steps on first run)</div>
+          <div class="col">
+            <input class="field" id="nt-name" placeholder="Name, e.g. Display material master MM03" />
+            <input class="field" id="nt-transaction" placeholder="Transaction code hint (optional), e.g. MM03" />
+            <textarea class="field" id="nt-intent" rows="3"
+              placeholder="Intent — describe what the test should do, in plain English"></textarea>
+            <textarea class="field" id="nt-expect" rows="2"
+              placeholder="Expected outcome (optional) — what counts as pass, in plain English"></textarea>
+            <div class="row">
+              <button class="btn" onclick="createTest()">Create Test</button>
+              <button class="btn btn-ghost" onclick="toggleNewTestForm()">Cancel</button>
+            </div>
+          </div>
+        </div>
         <div class="col" id="tests-list"><div class="empty">Loading tests…</div></div>
       </div>
 
@@ -262,6 +285,42 @@ async function fetchTests() {
       ${t.transaction ? `<div class="muted mt-8">Transaction: <code>${esc(t.transaction)}</code></div>` : ''}
     </div>
   `).join('');
+}
+
+function toggleNewTestForm() {
+  const form = document.getElementById('new-test-form');
+  const opening = form.style.display === 'none';
+  form.style.display = opening ? 'block' : 'none';
+  if (opening) {
+    document.getElementById('nt-name').value = '';
+    document.getElementById('nt-transaction').value = '';
+    document.getElementById('nt-intent').value = '';
+    document.getElementById('nt-expect').value = '';
+  }
+}
+
+async function createTest() {
+  const name = document.getElementById('nt-name').value.trim();
+  const intent = document.getElementById('nt-intent').value.trim();
+  const transaction = document.getElementById('nt-transaction').value.trim();
+  const expect = document.getElementById('nt-expect').value.trim();
+  if (!name || !intent) { toast('Name and intent are required.'); return; }
+
+  let resp;
+  try {
+    resp = await fetch('/api/tests', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, intent, transaction, expect }),
+    });
+  } catch (e) { toast('Create failed: ' + e.message); return; }
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    toast('Create failed: ' + (body.detail || resp.status));
+    return;
+  }
+  toast('Test created: ' + name);
+  toggleNewTestForm();
+  fetchTests();
 }
 
 // ── Trigger + live stream ────────────────────────────────────────────────────

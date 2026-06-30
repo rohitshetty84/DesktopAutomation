@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import sys
 import uuid
 from contextlib import asynccontextmanager
@@ -24,6 +25,8 @@ from datetime import datetime
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Optional
+
+import yaml
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -94,6 +97,49 @@ def get_test(name: str):
                 "expect": t.expect, "steps": [s.__dict__ for s in t.steps],
             }
     raise HTTPException(404, f"test {name!r} not found")
+
+
+class NewTestBody(BaseModel):
+    name: str
+    intent: str
+    transaction: str = ""
+    expect: str = ""
+
+
+def _slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+    return (slug or "test")[:60]
+
+
+@app.post("/api/tests")
+def create_test(body: NewTestBody):
+    name = body.name.strip()
+    intent = body.intent.strip()
+    if not name or not intent:
+        raise HTTPException(400, "name and intent are required")
+
+    # name is free text from the browser — never use it as a path component
+    # directly (path traversal). Slugify to a safe filename, then de-dupe.
+    base = _slugify(name)
+    path = TESTS_DIR / f"{base}.yaml"
+    n = 2
+    while path.exists():
+        path = TESTS_DIR / f"{base}_{n}.yaml"
+        n += 1
+
+    # No `steps` written — this is an intent-only test, same as authoring one
+    # by hand with just intent/expect. The planner generates steps from live
+    # SAP on first run; self-heal keeps them working after that.
+    data = {
+        "name": name,
+        "intent": intent,
+        "transaction": body.transaction.strip(),
+        "expect": body.expect.strip(),
+    }
+    TESTS_DIR.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    logger.info("created test %r at %s", name, path)
+    return {"name": name, "path": str(path)}
 
 
 # ── run history ──────────────────────────────────────────────────────────────

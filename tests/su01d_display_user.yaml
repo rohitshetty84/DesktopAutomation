@@ -1,0 +1,42 @@
+# Sample SAP GUI test — display a user master record (SU01D).
+#
+# Read-only / non-destructive: SU01D just displays user data — no Save, no
+# create-authorization involved — good for confirming the wiring (real SAP
+# attach + element ids + status reads) without the VA01 authorization
+# question in the way.
+#
+# Element ids below are a best-effort guess at the standard SAP ids (SU01D's
+# initial screen reuses the classic RSYST-BNAME field name) — I don't have a
+# live SAP system to verify them against your release. If they're wrong, the
+# self-healer will inspect the live element tree on the first run and remap
+# them automatically — this is a good live test of that path too.
+#
+# BEFORE RUNNING: replace REPLACE_WITH_YOUR_USER_ID below with a real
+# username in your system (e.g. your own SSO user id).
+
+name: SU01D Display User
+intent: >
+  Display the user master record for user REPLACE_WITH_YOUR_USER_ID via
+  transaction SU01D (Display Users) and confirm the user's detail screen
+  (e.g. the Address tab) loads.
+transaction: SU01D
+expect: >
+  The user's detail/display screen is shown (e.g. an Address tab with name
+  fields) rather than an error message or the SAP Easy Access menu. If the
+  screen tree contains the literal text "(dry-run: no live SAP tree)" instead
+  of real field data, say so explicitly in your reason — that means this ran
+  in mock mode against no real SAP system, not a real display.
+
+steps:
+  - action: start_transaction
+    target: SU01D
+    note: open the display-user transaction
+
+  - action: set_text
+    target: wnd[0]/usr/txtRSYST-BNAME
+    value: "REPLACE_WITH_YOUR_USER_ID"
+    note: user id to display — replace before running
+
+  - action: send_vkey
+    target: "0"
+    note: Enter — SU01D opens straight into display mode, no Save involved
