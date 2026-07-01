@@ -55,7 +55,10 @@ def heal(llm: LLMService, step: Step, error: str, tree_json: str,
              for s in data.get("extra_steps", []) or []]
     for s in extra:
         s.validate()
-    return new_target, extra, data.get("reason", "")
+    reason = data.get("reason", "")
+    logger.info("heal response: new_target=%r reason=%r extra_steps=%d",
+                new_target, reason, len(extra))
+    return new_target, extra, reason
 
 
 def verify(llm: LLMService, expect: str, status: dict, tree_json: str) -> Tuple[bool, str, dict]:

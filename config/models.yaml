@@ -16,6 +16,7 @@ models:
     api_version_env: AZURE_OPENAI_API_VERSION
     temperature: 0.2
     max_tokens: 1500
+    timeout: 90        # seconds; gpt-4o typically responds within 30s
 
   reasoning:
     provider: azure_openai
@@ -23,6 +24,7 @@ models:
     api_version_env: AZURE_REASONING_API_VERSION
     temperature: 0.2
     max_tokens: 2000
+    timeout: 180       # reasoning models (o4-mini) can take 60-120s to respond
 
   # STUBBED — wire azure_foundry_adapter.py + uncomment Foundry env vars to use.
   haiku:
@@ -30,6 +32,7 @@ models:
     deployment_env: AZURE_FOUNDRY_DEPLOYMENT
     temperature: 0.2
     max_tokens: 1500
+    timeout: 90
 
 # Retry policy for transient errors (429 / 5xx / connection).
 retry:

@@ -45,7 +45,21 @@ Output STRICT JSON only:
 
 extra_steps (optional) uses the same step schema as the planner, for cases where
 a popup must be dismissed before retrying. If you cannot find a match, return
-{"new_target": null, "reason": "..."}."""
+{"new_target": null, "reason": "..."}.
+
+SAP element id prefix rules — the prefix encodes the GuiComponent type:
+  txt   = GuiTextField          (plain input field, no F4 search help)
+  ctxt  = GuiCTextField         (input field WITH F4 search help / value help)
+  btn   = GuiButton
+  chk   = GuiCheckBox
+  rad   = GuiRadioButton
+  lbl   = GuiLabel
+  sub   = GuiSubscreenContainer
+  tabs  = GuiTabStrip
+  tabp  = GuiTab (individual tab page)
+  tbl   = GuiTableControl
+  grid  = GuiGridView
+Match the prefix in your new_target to the "type" field of the element in the tree."""
 
 HEAL_USER = """Failing step:
 {step}

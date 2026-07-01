@@ -122,14 +122,18 @@ class AdaptiveEngine:
             try:
                 for ex in extra:           # e.g. dismiss a popup first
                     self._apply(ex)
+                if not new_target and not extra:
+                    logger.warning("healer returned no new_target and no extra_steps — skipping retry")
+                    break
                 if new_target:
                     step.target = new_target   # rewrite cached plan -> deterministic next time
+                logger.info("heal retry (attempt %d): %s %s", attempt + 1, step.action, step.target)
                 self._apply(step)
                 return StepResult(step=step, ok=True, detail=f"healed: {reason}",
                                   healed=True, new_target=new_target)
             except Exception as e:  # noqa: BLE001
                 error = str(e)
-                logger.warning("retry after heal failed: %s", e)
+                logger.warning("retry after heal failed (attempt %d): %s", attempt + 1, e)
         return StepResult(step=step, ok=False, detail=f"unhealable: {error}")
 
     def _apply(self, step: Step) -> None:

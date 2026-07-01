@@ -5,11 +5,9 @@
 # attach + element ids + status reads) without the VA01 authorization
 # question in the way.
 #
-# Element ids below are a best-effort guess at the standard SAP ids (SU01D's
-# initial screen reuses the classic RSYST-BNAME field name) — I don't have a
-# live SAP system to verify them against your release. If they're wrong, the
-# self-healer will inspect the live element tree on the first run and remap
-# them automatically — this is a good live test of that path too.
+# SU01D's username field is a GuiCTextField (has F4 search help), so the
+# element prefix is ctxt not txt: wnd[0]/usr/ctxtRSYST-BNAME.
+# If the id is wrong on your release, the self-healer will remap it automatically.
 #
 # BEFORE RUNNING: replace REPLACE_WITH_YOUR_USER_ID below with a real
 # username in your system (e.g. your own SSO user id).
@@ -33,7 +31,7 @@ steps:
     note: open the display-user transaction
 
   - action: set_text
-    target: wnd[0]/usr/txtRSYST-BNAME
+    target: wnd[0]/usr/ctxtRSYST-BNAME
     value: "REPLACE_WITH_YOUR_USER_ID"
     note: user id to display — replace before running
 

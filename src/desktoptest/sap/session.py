@@ -26,6 +26,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
+# Defaults tunable via environment variables (no code change needed on-site).
+_BUSY_TIMEOUT  = float(os.getenv("SAP_BUSY_TIMEOUT", "15"))   # seconds
+_BUSY_POLL     = float(os.getenv("SAP_BUSY_POLL",    "0.1"))  # seconds
+
 logger = logging.getLogger("desktoptest.sap")
 
 _DEFAULT_SHCUT_PATH = r"C:\Program Files (x86)\SAP\FrontEnd\SAPgui\sapshcut.exe"
@@ -188,7 +192,12 @@ class SapSession:
             )
 
         logger.info("launched fresh SAP session: %s (user=%s)", session.Id, session.Info.User)
-        return cls(session=session, dry_run=False, connection=conn)
+        inst = cls(session=session, dry_run=False, connection=conn)
+        # Wait for the Easy Access Menu to finish rendering before handing back
+        # to the caller — SSO completing only means the login handshake is done,
+        # not that the initial screen is ready for scripting.
+        inst.wait_ready()
+        return inst
 
     def close(self) -> None:
         """Close a session opened by launch(). No-op in dry-run or for attach()ed
@@ -211,11 +220,14 @@ class SapSession:
             self._session.StartTransaction(tcode)
         except Exception as e:  # noqa: BLE001
             raise SapError(f"StartTransaction({tcode}) failed: {e}") from e
+        # Screen transition — wait for the new screen to finish loading.
+        self.wait_ready()
 
     def set_text(self, element_id: str, value: str) -> None:
         logger.info("set_text(%s, %r)", element_id, value)
         if self.dry_run:
             return
+        # set_text is a local field write — no server round-trip, no wait needed.
         self._find(element_id).text = value
 
     def get_text(self, element_id: str) -> str:
@@ -229,6 +241,8 @@ class SapSession:
         if self.dry_run:
             return
         self._find(element_id).press()
+        # Button presses can navigate to a new screen or trigger server work.
+        self.wait_ready()
 
     def select(self, element_id: str) -> None:
         """Select a menu / radio / checkbox / tab."""
@@ -236,6 +250,8 @@ class SapSession:
         if self.dry_run:
             return
         self._find(element_id).select()
+        # Tab/menu selections can trigger a screen repaint or data load.
+        self.wait_ready()
 
     def send_vkey(self, vkey: int, window: str = "wnd[0]") -> None:
         """Send a virtual key to a window. 0=Enter, 8=F8/Execute, 3=Back, 11=Save."""
@@ -243,6 +259,8 @@ class SapSession:
         if self.dry_run:
             return
         self._find(window).sendVKey(vkey)
+        # Virtual keys (Enter, Save, F8, Back, …) always go to the server.
+        self.wait_ready()
 
     def status_bar(self) -> dict:
         """Read the status bar — the primary outcome signal in SAP."""
@@ -298,6 +316,30 @@ class SapSession:
         except Exception as e:  # noqa: BLE001
             logger.warning("screenshot_b64 failed: %s", e)
             return None
+
+    # ── synchronisation ──────────────────────────────────────────────────────
+    def wait_ready(self, timeout: float = _BUSY_TIMEOUT,
+                   poll_interval: float = _BUSY_POLL) -> None:
+        """
+        Block until session.Busy is False or timeout expires.
+
+        SAP GUI Scripting's Busy flag is True during any in-flight server
+        round-trip or screen transition. Polling it is the only reliable way
+        to know the next findById() / text= won't race against an in-progress
+        repaint.  Fixed sleeps are either too short (flaky) or too long (slow).
+        """
+        if self.dry_run or self._session is None:
+            return
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                if not self._session.Busy:
+                    return
+            except Exception:  # noqa: BLE001 — COM may be mid-transition; keep polling
+                pass
+            time.sleep(poll_interval)
+        logger.warning("wait_ready: SAP session still busy after %.1fs — continuing anyway",
+                       timeout)
 
     # ── helpers ──────────────────────────────────────────────────────────────
     def _find(self, element_id: str):

@@ -42,6 +42,7 @@ class AzureOpenAIAdapter(ModelAdapter):
             api_key=api_key,
             api_version=cfg.api_version or "2024-02-01",
             azure_endpoint=endpoint,
+            timeout=cfg.timeout,
         )
         self._reasoning = _is_reasoning_deployment(cfg.deployment)
 

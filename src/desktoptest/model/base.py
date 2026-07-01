@@ -22,6 +22,7 @@ class ModelConfig:
     api_version: Optional[str] = None
     temperature: float = 0.2
     max_tokens: int = 1500
+    timeout: float = 120.0          # HTTP request timeout in seconds
 
 
 class ModelAdapter(abc.ABC):

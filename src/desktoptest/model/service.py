@@ -75,6 +75,7 @@ class LLMService:
                 api_version=api_version,
                 temperature=float(m.get("temperature", 0.2)),
                 max_tokens=int(m.get("max_tokens", 1500)),
+                timeout=float(m.get("timeout", 120.0)),
             )
         retry = data.get("retry") or {}
         return cls(
